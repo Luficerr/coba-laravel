@@ -2,31 +2,44 @@
 
 namespace App\Models;
 
-class Post
-{
-    private static $blog_posts = [
-        [
-            "title" => "Judul Post Pertama",
-            "slug" => "judul-post-pertama",
-            "author" => "Lutfi Faiz Ziyadatullah",
-            "body" => "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Distinctio, itaque ea? Adipisci explicabo laboriosam error facilis debitis fuga harum. Incidunt, repellendus omnis nobis reiciendis, eos quaerat, libero ullam voluptatem odit minima recusandae dolorem minus saepe? Illum aliquid quam deserunt quidem officia impedit nesciunt modi ut incidunt ab similique ipsum itaque animi, maiores adipisci tempora, eaque culpa voluptas eligendi sequi sit dolorem. Tenetur non hic ipsa unde omnis iure eum porro, earum cum deleniti expedita iste corrupti iusto dolor. Nam, fugiat."
-        ],
-        [
-            "title" => "Judul Post Kedua",
-            "slug" => "judul-post-kedua",
-            "author" => "Xaviera Putri Ardianingsih Listyo",
-            "body" => "Lorem, ipsum dolor sit amet consectetur adipisicing elit. Fuga inventore dolor dolorem soluta tenetur alias a eveniet quae perferendis nobis. Nostrum expedita architecto cumque placeat amet et quas temporibus perspiciatis ipsa autem, adipisci inventore corrupti quo labore atque. In expedita earum, ut doloremque, distinctio fugiat vero voluptates tempora qui libero veritatis, quaerat molestias ab quisquam adipisci laboriosam debitis culpa eligendi recusandae ducimus tenetur modi dolores! Maxime voluptas sed deleniti delectus vitae. Dicta nobis, aspernatur quibusdam provident quis adipisci nam, magnam qui impedit non fugit id ipsum tempore similique aliquam quasi iusto dolores maiores doloribus quisquam necessitatibus eos dolorum cum autem."
-        ],
-    ];
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-    public static function all()
+class Post extends Model
+{
+    use HasFactory;
+
+    // protected $fillable = ['title', 'excerpt', 'body'];
+    protected $guarded = ['id'];
+    protected $with = ['category', 'author'];
+
+    public function scopeFilter($query, array $filters) 
     {
-        return collect(self::$blog_posts);
+        $query->when($filters['search'] ?? false, function($query, $search) {
+            return $query->where('title', 'like', '%' . $search . '%')
+                         ->orWhere('body', 'like', '%'. $search . '%');
+        });
+
+        $query->when($filters['category'] ?? false, function($query, $category) {
+            return $query->whereHas('category', function($query) use ($category) {
+                $query->where('slug', $category);
+            });
+        });
+
+        $query->when($filters['author'] ?? false, fn($query, $author) =>
+            $query->whereHas('author', fn($query) =>
+                $query->where('username', $author)
+            )
+        );
     }
 
-    public static function find($slug)
+    public function category()
     {
-        $posts = static::all();
-        return $posts->firstWhere('slug', $slug);
+        return $this->belongsTo(Category::class);
+    }
+
+    public function author()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
